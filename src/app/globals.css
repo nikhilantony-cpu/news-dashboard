@@ -1,16 +1,493 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
-@theme {
-  --font-sans: var(--font-inter);
+:root {
+  --ink: #142322;
+  --muted: #65716d;
+  --line: #dce3df;
+  --wash: #f4f7f4;
+  --green: #087d69;
+  --blue: #176da0;
 }
 
-body {
-  margin: 0;
-  padding: 0;
+* {
   box-sizing: border-box;
 }
 
+html {
+  background: var(--wash);
+}
+
+body,
+.app-body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(244, 247, 244, 0.98)),
+    repeating-linear-gradient(135deg, rgba(8, 125, 105, 0.025) 0 1px, transparent 1px 8px);
+  color: var(--ink);
+  font-family: var(--font-manrope), sans-serif;
+}
+
 ::selection {
-  background: rgba(14, 165, 233, 0.4); /* Cyan-500 with opacity */
-  color: white;
+  background: rgba(8, 125, 105, 0.2);
+  color: var(--ink);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.site-shell {
+  width: min(100% - 64px, 1460px);
+  margin: 0 auto;
+}
+
+.page-header {
+  min-height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+}
+
+.college-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.college-mark__seal {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--green);
+  border-radius: 50%;
+  color: var(--green);
+  font-family: var(--font-lora), Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.college-mark__name {
+  display: grid;
+  gap: 3px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.college-mark__name span {
+  color: var(--muted);
+  font-family: var(--font-manrope), sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.official-link {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.official-link span {
+  margin-left: 5px;
+  color: var(--green);
+}
+
+.feed-intro {
+  padding: 65px 0 34px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.eyebrow span {
+  padding: 0 4px;
+  color: #9aa8a1;
+}
+
+.feed-intro h1 {
+  margin: 0;
+  font-family: var(--font-lora), Georgia, "Times New Roman", serif;
+  font-size: clamp(44px, 6vw, 72px);
+  font-weight: 500;
+  line-height: 1.02;
+}
+
+.feed-description {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.feed-tabs {
+  display: flex;
+  gap: 28px;
+  min-height: 52px;
+  border-bottom: 1px solid var(--line);
+}
+
+.feed-tab {
+  position: relative;
+  display: grid;
+  align-items: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.feed-tab.is-active {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.feed-tab.is-active::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  background: var(--green);
+  content: "";
+}
+
+.news-row {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.68fr) minmax(0, 1.32fr);
+  gap: clamp(32px, 6vw, 86px);
+  align-items: center;
+  padding: 30px 0;
+  border-bottom: 1px solid var(--line);
+  animation: enter 450ms ease both;
+}
+
+.news-row:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.news-row:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.news-image-link {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 0.84 / 1;
+  background: #e9efeb;
+}
+
+.news-image {
+  object-fit: cover;
+  transition: transform 500ms cubic-bezier(0.2, 0.65, 0.3, 1);
+}
+
+.news-image-link:hover .news-image {
+  transform: scale(1.025);
+}
+
+.image-placeholder {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: var(--green);
+  font-family: var(--font-lora), Georgia, "Times New Roman", serif;
+  font-size: 42px;
+}
+
+.news-copy {
+  max-width: 760px;
+  padding: 12px 0;
+}
+
+.news-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 19px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.type-label {
+  padding: 7px 13px;
+  border: 1px solid #dce6e1;
+  border-radius: 5px;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.type-label--events {
+  border-color: #d9e6ef;
+  color: var(--blue);
+}
+
+.news-copy h2 {
+  margin: 0;
+  font-family: var(--font-lora), Georgia, "Times New Roman", serif;
+  font-size: clamp(28px, 3vw, 40px);
+  font-weight: 500;
+  line-height: 1.18;
+}
+
+.news-copy h2 a:hover {
+  color: var(--green);
+}
+
+.news-excerpt {
+  margin: 18px 0 0;
+  color: #283632;
+  font-size: clamp(16px, 1.55vw, 21px);
+  line-height: 1.72;
+}
+
+.read-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 30px;
+  color: var(--blue);
+  font-size: 16px;
+}
+
+.read-more span {
+  transition: transform 180ms ease;
+}
+
+.read-more:hover span {
+  transform: translateX(4px);
+}
+
+.empty-state {
+  padding: 72px 0;
+  color: var(--muted);
+  text-align: center;
+}
+
+.pagination {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-height: 94px;
+  border-bottom: 1px solid var(--line);
+}
+
+.page-control {
+  color: var(--blue);
+  font-size: 14px;
+}
+
+.page-control:last-child {
+  justify-self: end;
+}
+
+.page-count {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.page-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 25px 0 34px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.article-shell {
+  width: min(100% - 48px, 980px);
+  margin: 0 auto;
+  padding: 44px 0 72px;
+}
+
+.article-back {
+  display: inline-block;
+  margin-bottom: 40px;
+  color: var(--blue);
+  font-size: 14px;
+}
+
+.article-header {
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.article-date {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.article-header h1 {
+  margin: 18px 0 0;
+  font-family: var(--font-lora), Georgia, "Times New Roman", serif;
+  font-size: clamp(36px, 6vw, 60px);
+  font-weight: 500;
+  line-height: 1.08;
+}
+
+.article-hero {
+  position: relative;
+  width: min(100%, 700px);
+  aspect-ratio: 4 / 3;
+  margin: 34px auto;
+  background: #e9efeb;
+}
+
+.article-hero img {
+  object-fit: contain;
+}
+
+.article-content {
+  color: #283632;
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+.article-content p,
+.article-content ul,
+.article-content ol {
+  margin: 0 0 1.35em;
+}
+
+.article-content h2,
+.article-content h3 {
+  margin: 1.6em 0 0.6em;
+  color: var(--ink);
+  font-family: var(--font-lora), Georgia, "Times New Roman", serif;
+  font-weight: 500;
+}
+
+.article-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.article-content figure {
+  margin: 1.5em 0;
+}
+
+.article-content a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.article-source {
+  margin-top: 44px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.article-source a {
+  color: var(--blue);
+}
+
+.not-found {
+  padding: 100px 24px;
+  text-align: center;
+}
+
+.not-found h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+}
+
+@keyframes enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 760px) {
+  .site-shell {
+    width: min(100% - 36px, 600px);
+  }
+
+  .page-header {
+    min-height: 72px;
+  }
+
+  .official-link {
+    font-size: 12px;
+  }
+
+  .feed-intro {
+    padding: 48px 0 28px;
+  }
+
+  .news-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+    padding: 24px 0;
+  }
+
+  .news-image-link {
+    aspect-ratio: 1.35 / 1;
+  }
+
+  .news-copy {
+    padding: 0 0 6px;
+  }
+
+  .news-copy h2 {
+    font-size: 31px;
+  }
+
+  .news-excerpt {
+    font-size: 17px;
+    line-height: 1.65;
+  }
+
+  .read-more {
+    margin-top: 21px;
+  }
+
+  .page-footer {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 420px) {
+  .college-mark {
+    gap: 8px;
+  }
+
+  .college-mark__seal {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+
+  .college-mark__name {
+    font-size: 14px;
+  }
+
+  .college-mark__name span {
+    font-size: 9px;
+  }
+
+  .official-link {
+    max-width: 90px;
+    text-align: right;
+  }
+
+  .feed-tabs {
+    gap: 22px;
+  }
 }

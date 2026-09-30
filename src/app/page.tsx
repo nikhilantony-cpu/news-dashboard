@@ -1,98 +1,199 @@
-import React from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { load } from 'cheerio';
 
-// Using dummy data until the college site URL is provided.
-const DUMMY_NEWS = [
-  {
-    id: 1,
-    title: "Annual Tech Symposium Dates Announced",
-    summary: "The much awaited annual technology symposium will be held next month. Registration begins this Friday.",
-    date: "Sep 30, 2026",
-    category: "Events"
-  },
-  {
-    id: 2,
-    title: "Library Extends Reading Hours",
-    summary: "As finals are approaching, the central library will remain open 24/7 starting next Monday to assist student preparation.",
-    date: "Sep 29, 2026",
-    category: "Campus"
-  },
-  {
-    id: 3,
-    title: "Varsity Team Wins Regionals",
-    summary: "Our college basketball team secured a thrilling victory at the regional finals yesterday evening.",
-    date: "Sep 28, 2026",
-    category: "Sports"
+type FeedType = 'news' | 'events';
+type FeedFilter = 'all' | FeedType;
+
+interface WPItem {
+  id: number;
+  date: string;
+  type: FeedType;
+  title: { rendered: string };
+  content: { rendered: string };
+  featured_media: number;
+  link: string;
+  _embedded?: {
+    'wp:featuredmedia'?: Array<{
+      source_url: string;
+      alt_text: string;
+      media_details?: {
+        sizes?: Record<string, { source_url: string }>;
+      };
+    }>;
+  };
+}
+
+interface FeedPage {
+  items: WPItem[];
+  pages: number;
+  total: number;
+}
+
+export const revalidate = 300;
+
+const API_URL = 'https://uccollege.edu.in/wp-json/wp/v2';
+const PAGE_SIZE = 8;
+
+async function getFeed(type: FeedType, page: number, perPage: number): Promise<FeedPage> {
+  const params = new URLSearchParams({
+    _embed: 'wp:featuredmedia',
+    page: String(page),
+    per_page: String(perPage),
+    order: 'desc',
+    orderby: 'date',
+  });
+
+  try {
+    let response = await fetch(`${API_URL}/${type}?${params}`, {
+      next: { revalidate: 300 },
+    });
+
+    if (!response.ok && page > 1) {
+      params.set('page', '1');
+      response = await fetch(`${API_URL}/${type}?${params}`, {
+        next: { revalidate: 300 },
+      });
+    }
+
+    if (!response.ok) return { items: [], pages: 0, total: 0 };
+
+    const pages = Number(response.headers.get('X-WP-TotalPages') ?? 1);
+    return {
+      items: page <= pages ? ((await response.json()) as WPItem[]) : [],
+      pages,
+      total: Number(response.headers.get('X-WP-Total') ?? 0),
+    };
+  } catch (error) {
+    console.error(`Unable to load college ${type}:`, error);
+    return { items: [], pages: 0, total: 0 };
   }
-];
+}
 
-export default function Home() {
+function formatDate(isoString: string) {
+  const [year, month, day] = isoString.split('T')[0].split('-');
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  return `${months[Number(month) - 1]} ${Number(day)}, ${year}`;
+}
+
+function plainText(html: string) {
+  return load(html).text().replace(/\s+/g, ' ').trim();
+}
+
+function getImage(item: WPItem) {
+  const media = item._embedded?.['wp:featuredmedia']?.[0];
+  const image = media?.media_details?.sizes?.medium_large?.source_url
+    ?? media?.media_details?.sizes?.large?.source_url
+    ?? media?.source_url
+    ?? load(item.content.rendered)('img').first().attr('src');
+
+  return {
+    src: image,
+    alt: media?.alt_text || plainText(item.title.rendered),
+  };
+}
+
+function excerpt(item: WPItem) {
+  const text = plainText(item.content.rendered);
+  if (text.length <= 260) return text;
+  const shortened = text.slice(0, 257);
+  return `${shortened.slice(0, shortened.lastIndexOf(' '))}...`;
+}
+
+function pageHref(filter: FeedFilter, page: number) {
+  const params = new URLSearchParams();
+  if (filter !== 'all') params.set('type', filter);
+  if (page > 1) params.set('page', String(page));
+  const query = params.toString();
+  return query ? `/?${query}` : '/';
+}
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string; page?: string }>;
+}) {
+  const query = await searchParams;
+  const filter: FeedFilter = query.type === 'news' || query.type === 'events' ? query.type : 'all';
+  const requestedPage = Number.parseInt(query.page ?? '1', 10);
+  const page = Number.isFinite(requestedPage) ? Math.min(Math.max(requestedPage, 1), 300) : 1;
+  const perTypePageSize = filter === 'all' ? PAGE_SIZE / 2 : PAGE_SIZE;
+
+  const [news, events] = await Promise.all([
+    filter === 'events' ? Promise.resolve({ items: [], pages: 0, total: 0 }) : getFeed('news', page, perTypePageSize),
+    filter === 'news' ? Promise.resolve({ items: [], pages: 0, total: 0 }) : getFeed('events', page, perTypePageSize),
+  ]);
+
+  const items = [...news.items, ...events.items].sort((left, right) => Date.parse(right.date) - Date.parse(left.date));
+  const totalPages = filter === 'all' ? Math.max(news.pages, events.pages) : news.pages || events.pages;
+  const totalItems = news.total + events.total;
+
   return (
-    <main className="max-w-6xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
-      {/* Header section */}
-      <header className="mb-12 border-b border-slate-700/50 pb-8 animate-fade-in-down">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
-              Live College News
-            </h1>
-            <p className="mt-3 text-slate-400 text-lg">
-              24/7 read-only board streaming the latest updates directly from the campus site.
-            </p>
-          </div>
-          <div className="hidden sm:flex items-center space-x-2">
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-            </span>
-            <span className="text-sm font-medium text-emerald-400 tracking-wide uppercase">Live Connection</span>
-          </div>
-        </div>
+    <main className="site-shell">
+      <header className="page-header">
+        <Link className="college-mark" href="/" aria-label="Union Christian College news home">
+          <span className="college-mark__seal">UC</span>
+          <span className="college-mark__name">Union Christian College <span>Aluva · Est. 1921</span></span>
+        </Link>
+        <a className="official-link" href="https://uccollege.edu.in/news-and-events/" target="_blank" rel="noreferrer">
+          Official website <span aria-hidden="true">↗</span>
+        </a>
       </header>
 
-      {/* Grid Layout for News */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {DUMMY_NEWS.map((news) => (
-          <article
-            key={news.id}
-            className="group block relative overflow-hidden rounded-2xl bg-slate-800/40 border border-slate-700/50 p-6 transition-all duration-300 hover:bg-slate-800/80 hover:scale-[1.02] hover:shadow-2xl hover:shadow-cyan-900/20"
-          >
-            {/* Ambient Background Gradient for Hover */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-cyan-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+      <section className="feed-intro" aria-labelledby="page-title">
+        <p className="eyebrow">Campus bulletin <span>·</span> {totalItems.toLocaleString()} stories</p>
+        <h1 id="page-title">News &amp; Events</h1>
+        <p className="feed-description">The latest from Union Christian College, Aluva.</p>
+      </section>
 
-            <div className="relative z-10 flex flex-col h-full">
-              <div className="flex items-center justify-between mb-4">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-300 border border-blue-500/20">
-                  {news.category}
-                </span>
-                <span className="text-xs text-slate-500 font-medium">
-                  {news.date}
-                </span>
-              </div>
-
-              <h2 className="text-xl font-bold text-slate-100 mb-3 leading-snug group-hover:text-blue-300 transition-colors">
-                {news.title}
-              </h2>
-
-              <p className="text-slate-400 text-sm flex-grow line-clamp-3">
-                {news.summary}
-              </p>
-
-              <div className="mt-6 pt-4 border-t border-slate-700/50">
-                <span className="text-sm font-medium text-cyan-400 group-hover:text-cyan-300 flex items-center transition-colors shadow-inner">
-                  Read full story
-                  <svg className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </span>
-              </div>
-            </div>
-          </article>
+      <nav className="feed-tabs" aria-label="Filter news and events">
+        {(['all', 'news', 'events'] as const).map((tab) => (
+          <Link key={tab} href={pageHref(tab, 1)} className={filter === tab ? 'feed-tab is-active' : 'feed-tab'} aria-current={filter === tab ? 'page' : undefined}>
+            {tab === 'all' ? 'All updates' : tab === 'news' ? 'News' : 'Events'}
+          </Link>
         ))}
-      </div>
+      </nav>
 
-      {/* Footer */}
-      <footer className="mt-20 pt-8 border-t border-slate-800 text-center text-slate-500 text-sm">
-        <p>Automated Read-Only Feed • Syncing constantly • Built for Performance</p>
+      {items.length > 0 ? (
+        <section className="news-list" aria-label="College updates">
+          {items.map((item) => {
+            const title = plainText(item.title.rendered);
+            const image = getImage(item);
+            const summary = excerpt(item);
+
+            return (
+              <article className="news-row" key={`${item.type}-${item.id}`}>
+                <Link className="news-image-link" href={`/news/${item.type}-${item.id}`} aria-label={`Read ${title}`}>
+                  {image.src ? <Image className="news-image" src={image.src} alt={image.alt} fill sizes="(max-width: 760px) 100vw, 38vw" unoptimized /> : <span className="image-placeholder">UC</span>}
+                </Link>
+                <div className="news-copy">
+                  <div className="news-meta">
+                    <span className={`type-label type-label--${item.type}`}>{item.type}</span>
+                    <time dateTime={item.date}>{formatDate(item.date)}</time>
+                  </div>
+                  <h2><Link href={`/news/${item.type}-${item.id}`}>{title}</Link></h2>
+                  {summary && <p className="news-excerpt">{summary}</p>}
+                  <Link className="read-more" href={`/news/${item.type}-${item.id}`}>Read More <span aria-hidden="true">→</span></Link>
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      ) : (
+        <p className="empty-state">The college feed is temporarily unavailable. Please try again shortly.</p>
+      )}
+
+      {totalPages > 1 && (
+        <nav className="pagination" aria-label="News archive pages">
+          {page > 1 ? <Link href={pageHref(filter, page - 1)} className="page-control">← Previous</Link> : <span />}
+          <span className="page-count">Page {page} of {totalPages}</span>
+          {page < totalPages ? <Link href={pageHref(filter, page + 1)} className="page-control">Next →</Link> : <span />}
+        </nav>
+      )}
+
+      <footer className="page-footer">
+        <span>Union Christian College · Aluva</span>
+        <span>Updated from the official college feed every 5 minutes</span>
       </footer>
     </main>
   );

@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Lora, Manrope } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
+const lora = Lora({ subsets: ["latin"], variable: "--font-lora" });
 
 export const metadata: Metadata = {
-  title: "Campus News Dashboard",
-  description: "24/7 Live Read-Only Board for College Updates",
+  title: "News & Events | Union Christian College",
+  description: "The latest news and events from Union Christian College, Aluva.",
 };
 
 export default function RootLayout({
@@ -15,8 +16,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} bg-slate-900 text-slate-100 min-h-screen selection:bg-cyan-500 selection:text-white`}>
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning className={`${manrope.variable} ${lora.variable} app-body`}>
         {children}
       </body>
     </html>
