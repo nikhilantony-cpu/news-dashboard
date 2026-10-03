@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { getSupabaseClient } from '@/lib/supabase/client';
 
 interface WPArticle {
     id: number;
@@ -8,6 +9,8 @@ interface WPArticle {
     title: { rendered: string };
     content: { rendered: string };
     type: 'news' | 'events';
+    image_url?: string | null;
+    image_alt?: string | null;
     _embedded?: {
         'wp:featuredmedia'?: Array<{
             source_url: string;
@@ -25,7 +28,33 @@ async function getArticle(key: string): Promise<WPArticle | null> {
     const match = /^(news|events)-(\d+)$/.exec(key);
     if (!match) return null;
 
-    const [, type, id] = match;
+    const type = match[1] as WPArticle['type'];
+    const id = match[2];
+
+    try {
+        const { data, error } = await getSupabaseClient()
+            .from('college_updates')
+            .select('id, type, date, title, content_html, source_url, image_url, image_alt')
+            .eq('type', type)
+            .eq('id', Number(id))
+            .maybeSingle();
+
+        if (error) throw error;
+        if (data) {
+            return {
+                id: data.id,
+                date: data.date,
+                type,
+                title: { rendered: data.title },
+                content: { rendered: data.content_html },
+                link: data.source_url,
+                image_url: data.image_url,
+                image_alt: data.image_alt,
+            };
+        }
+    } catch (error) {
+        console.error('Unable to load article from Supabase:', error);
+    }
 
     try {
         const res = await fetch(`https://uccollege.edu.in/wp-json/wp/v2/${type}/${id}?_embed=wp:featuredmedia`, {
@@ -65,7 +94,7 @@ export default async function NewsArticlePage({ params }: { params: Promise<{ id
     };
 
     const media = article._embedded?.['wp:featuredmedia']?.[0];
-    const image = media?.media_details?.sizes?.large?.source_url ?? media?.source_url;
+    const image = article.image_url ?? media?.media_details?.sizes?.large?.source_url ?? media?.source_url;
 
     return (
         <main className="article-shell">
@@ -78,7 +107,7 @@ export default async function NewsArticlePage({ params }: { params: Promise<{ id
 
                 {image && (
                     <div className="article-hero">
-                        <Image src={image} alt={media?.alt_text || article.title.rendered} fill sizes="(max-width: 700px) 100vw, 700px" unoptimized />
+                        <Image src={image} alt={article.image_alt || media?.alt_text || article.title.rendered} fill sizes="(max-width: 700px) 100vw, 700px" unoptimized />
                     </div>
                 )}
 

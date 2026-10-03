@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { load } from 'cheerio';
+import { getSupabaseClient } from '@/lib/supabase/client';
 
 type FeedType = 'news' | 'events';
 type FeedFilter = 'all' | FeedType;
@@ -13,6 +14,8 @@ interface WPItem {
   content: { rendered: string };
   featured_media: number;
   link: string;
+  image_url?: string | null;
+  image_alt?: string | null;
   _embedded?: {
     'wp:featuredmedia'?: Array<{
       source_url: string;
@@ -70,6 +73,39 @@ async function getFeed(type: FeedType, page: number, perPage: number): Promise<F
   }
 }
 
+async function getConnectedFeed(type: FeedType, page: number, perPage: number): Promise<FeedPage> {
+  try {
+    const { data, error, count } = await getSupabaseClient()
+      .from('college_updates')
+      .select('id, type, date, title, content_html, source_url, image_url, image_alt', { count: 'exact' })
+      .eq('type', type)
+      .order('date', { ascending: false })
+      .range((page - 1) * perPage, page * perPage - 1);
+
+    if (error) throw error;
+    if (!count) return getFeed(type, page, perPage);
+
+    return {
+      items: data.map((row) => ({
+        id: row.id,
+        date: row.date,
+        type,
+        title: { rendered: row.title },
+        content: { rendered: row.content_html },
+        featured_media: 0,
+        link: row.source_url,
+        image_url: row.image_url,
+        image_alt: row.image_alt,
+      })),
+      pages: Math.ceil(count / perPage),
+      total: count,
+    };
+  } catch (error) {
+    console.error(`Unable to load college ${type} from Supabase:`, error);
+    return getFeed(type, page, perPage);
+  }
+}
+
 function formatDate(isoString: string) {
   const [year, month, day] = isoString.split('T')[0].split('-');
   const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -82,14 +118,15 @@ function plainText(html: string) {
 
 function getImage(item: WPItem) {
   const media = item._embedded?.['wp:featuredmedia']?.[0];
-  const image = media?.media_details?.sizes?.medium_large?.source_url
+  const image = item.image_url
+    ?? media?.media_details?.sizes?.medium_large?.source_url
     ?? media?.media_details?.sizes?.large?.source_url
     ?? media?.source_url
     ?? load(item.content.rendered)('img').first().attr('src');
 
   return {
     src: image,
-    alt: media?.alt_text || plainText(item.title.rendered),
+    alt: item.image_alt || media?.alt_text || plainText(item.title.rendered),
   };
 }
 
@@ -120,8 +157,8 @@ export default async function Home({
   const perTypePageSize = filter === 'all' ? PAGE_SIZE / 2 : PAGE_SIZE;
 
   const [news, events] = await Promise.all([
-    filter === 'events' ? Promise.resolve({ items: [], pages: 0, total: 0 }) : getFeed('news', page, perTypePageSize),
-    filter === 'news' ? Promise.resolve({ items: [], pages: 0, total: 0 }) : getFeed('events', page, perTypePageSize),
+    filter === 'events' ? Promise.resolve({ items: [], pages: 0, total: 0 }) : getConnectedFeed('news', page, perTypePageSize),
+    filter === 'news' ? Promise.resolve({ items: [], pages: 0, total: 0 }) : getConnectedFeed('events', page, perTypePageSize),
   ]);
 
   const items = [...news.items, ...events.items].sort((left, right) => Date.parse(right.date) - Date.parse(left.date));
